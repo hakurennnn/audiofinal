@@ -1,7 +1,10 @@
+// VoiceAuthen.js
 import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet, Text } from 'react-native';
 import Auth from '../assets/Voice2.png';
 import hori from '../assets/hori.png';
+import axios from 'axios'; // Import axios
+import config from '../config'; // Import config
 
 const VoiceAuthen = ({ navigation }) => {
   const [message, setMessage] = useState('');
@@ -10,25 +13,34 @@ const VoiceAuthen = ({ navigation }) => {
   const [redirectMessage, setRedirectMessage] = useState('');
 
   const goToLandingPage = () => {
+    console.log('[VoiceAuthen] Navigating to LandingPage');
     navigation.navigate('LandingPage');
   };
 
   const goToRecordAuthen = () => {
+    console.log('[VoiceAuthen] Navigating to RecordAuthen');
     navigation.navigate('RecordAuthen');
   };
 
   useEffect(() => {
-    // Function to fetch classification result from Flask backend
     const fetchClassificationResult = async () => {
+      console.log('[VoiceAuthen] Fetching classification result from:', `${config.apiUrl}/audio_results`);
       try {
-        const response = await fetch('http://localhost:8080/process_audio', {
-          method: 'POST',
-          body: new FormData().append('audio_files', /* your audio file here */),
-        });
-        
-        const result = await response.json();
-        const prediction = result.audios[0].prediction[0] > 0.5 ? 'REAL' : 'FAKE'; // Adjust threshold as needed
+        const response = await axios.get(`${config.apiUrl}/audio_results`);
+        console.log('[VoiceAuthen] Response Status:', response.status);
+        console.log('[VoiceAuthen] Response Headers:', response.headers);
+        console.log('[VoiceAuthen] Response Data:', response.data);
 
+        const result = response.data;
+
+        if (!result || result.length === 0) {
+          throw new Error('Invalid response structure or empty audios array.');
+        }
+
+        const prediction = result[0].prediction;
+        console.log('[VoiceAuthen] Prediction:', prediction);
+
+        // Map predictions to messages
         const messages = [
           {
             main: 'Identity Verified',
@@ -44,7 +56,18 @@ const VoiceAuthen = ({ navigation }) => {
           },
         ];
 
-        const selectedMessage = messages.find(message => message.sub === prediction);
+        console.log('[VoiceAuthen] Messages:', messages);
+
+        // Map 'FAKE' to 'AI-Generated Voice' and 'REAL' to 'Human Voice'
+        const predictionToMessageMap = {
+          'FAKE': 'AI-Generated Voice',
+          'REAL': 'Human Voice'
+        };
+
+        const selectedSub = predictionToMessageMap[prediction];
+        const selectedMessage = messages.find(message => message.sub === selectedSub);
+
+        console.log('[VoiceAuthen] Selected Message:', selectedMessage);
 
         if (selectedMessage) {
           setMessage(selectedMessage.main);
@@ -53,16 +76,18 @@ const VoiceAuthen = ({ navigation }) => {
           setRedirectMessage(selectedMessage.redirect);
 
           if (selectedMessage.main === 'Identity Verified') {
+            console.log('[VoiceAuthen] Identity Verified. Redirecting to LandingPage in 10 seconds.');
             setTimeout(() => {
               goToLandingPage();
-            }, 10000); // 10 seconds 
+            }, 10000); // 10 seconds
           } else {
+            console.log('[VoiceAuthen] Identity Denied. Redirecting to RecordAuthen in 10 seconds.');
             setTimeout(() => {
               goToRecordAuthen();
             }, 10000);
           }
         } else {
-          // Handle unexpected result
+          console.error('[VoiceAuthen] Unexpected result. No matching message found.');
           setMessage('Error');
           setStatusMessage('Unknown result');
           setDetailMessage('An error occurred while verifying voice.');
@@ -72,7 +97,8 @@ const VoiceAuthen = ({ navigation }) => {
           }, 10000);
         }
       } catch (error) {
-        console.error('Error fetching classification result:', error);
+        console.error('[VoiceAuthen] Error fetching classification result:', error.message);
+        console.error(error);
         setMessage('Error');
         setStatusMessage('Network error');
         setDetailMessage('An error occurred while communicating with the server.');
@@ -85,7 +111,6 @@ const VoiceAuthen = ({ navigation }) => {
 
     fetchClassificationResult();
   }, []);
-  
   return (
     <View style={styles.container}>
 

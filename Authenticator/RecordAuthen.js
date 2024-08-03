@@ -286,8 +286,6 @@ export default function EnrollAuthen() {
     }
   }
   
-  
-  
   function handleRecordButtonPress() {
     console.log('Record button pressed');
     if (recording) {
