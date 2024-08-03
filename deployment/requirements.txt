@@ -1,0 +1,7 @@
+numpy
+librosa
+tensorflow
+tensorflow-hub
+tqdm
+concurrent
+argparse
